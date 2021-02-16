@@ -1,0 +1,79 @@
+#svg {
+  user-select: none;
+  display: block;
+  font-family: 'Helvetica neue', sans-serif;
+  font-weight: bold;
+}
+
+.force-bar-array-wrapper {
+  text-align: center;
+}
+.force-bar-array-xaxis path {
+  fill: none;
+  opacity: 0.4;
+}
+.force-bar-array-xaxis .domain {
+  opacity: 0;
+}
+.force-bar-array-xaxis paths {
+  display: none;
+}
+.force-bar-array-yaxis path {
+  fill: none;
+  opacity: 0.4;
+}
+.force-bar-array-yaxis paths {
+  display: none;
+}
+.tick line {
+  stroke: #000;
+  stroke-width: 1px;
+  opacity: 0.4;
+}
+.tick text {
+  fill: #000;
+  opacity: 0.5;
+  font-size: 14px !important;
+  padding: 0px;
+}
+.force-bar-array-flabels {
+  font-size: 12px;
+  fill: #fff;
+  text-anchor: middle;
+}
+.additive-force-array-xlabel {
+  background: none;
+  opacity: 0.5;
+  margin-bottom: 0px;
+  font-family: 'Helvetica neue';
+  margin-left: 80px;
+  max-width: 300px;
+  padding: 12px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+.additive-force-array-xlabel:focus {
+  outline: none;
+}
+.additive-force-array-ylabel {
+  position: relative;
+  top: 0px;
+  left: 0px;
+  transform: rotate(-90deg);
+  background: none;
+  opacity: 0.5;
+  margin-bottom: 0px;
+  font-family: 'Helvetica neue';
+  max-width: 150px;
+  padding: 12px;
+  font-size: 14px;
+  border-radius: 4px;
+}
+.additive-force-array-ylabel:focus {
+  outline: none;
+}
+.additive-force-array-hoverLine {
+  stroke-width: 1px;
+  stroke: #fff;
+  opacity: 1;
+}

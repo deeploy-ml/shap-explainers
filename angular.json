@@ -3,5 +3,44 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-  }
+    "shap-explainers": {
+      "projectType": "library",
+      "root": "projects/shap-explainers",
+      "sourceRoot": "projects/shap-explainers/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "options": {
+            "tsConfig": "projects/shap-explainers/tsconfig.lib.json",
+            "project": "projects/shap-explainers/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/shap-explainers/tsconfig.lib.prod.json"
+            }
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/shap-explainers/src/test.ts",
+            "tsConfig": "projects/shap-explainers/tsconfig.spec.json",
+            "karmaConfig": "projects/shap-explainers/karma.conf.js"
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": [
+              "projects/shap-explainers/tsconfig.lib.json",
+              "projects/shap-explainers/tsconfig.spec.json"
+            ],
+            "exclude": ["**/node_modules/**"]
+          }
+        }
+      }
+    }
+  },
+  "defaultProject": "shap-explainers"
 }
