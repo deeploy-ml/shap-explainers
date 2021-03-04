@@ -1,4 +1,14 @@
-import { AfterViewInit, Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import {
+  AfterViewInit,
+  Component,
+  ElementRef,
+  EventEmitter,
+  Input,
+  OnDestroy,
+  OnInit,
+  Output,
+  ViewChild,
+} from '@angular/core';
 import { select } from 'd3-selection';
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { format } from 'd3-format';
@@ -22,34 +32,35 @@ import {
 } from 'lodash';
 import * as d3 from 'd3';
 
-import { ShapColors } from './shap-colors';
 import { AdditiveForceArrayData } from './shap-data';
 import { timeFormat, timeParse } from 'd3';
 
 @Component({
-  selector: 'app-shap-additive-force-array',
+  selector: 'shap-additive-force-array',
   templateUrl: './shap-additive-force-array.component.html',
   styleUrls: ['./shap-additive-force-array.component.scss'],
 })
-export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy {
+export class ShapAdditiveForceArrayComponent
+  implements AfterViewInit, OnDestroy {
   @Input() orderingKeys;
   @Input() orderKeysTimeFormat;
   @Input() topOffset: number = 28;
   @Input() leftOffset: number = 80;
   @Input() rightOffset: number = 10;
   @Input() height: number = 350;
-  @Input() link: 'identity' | 'logit' = 'identity';
-  @Input() baseValue: number = 10;
+
+  @Input() plotColors = ['rgb(222, 53, 13)', 'rgb(111, 207, 151)'];
+  @Input() link: 'logit' | 'identity' = 'identity';
+  @Input() baseValue: number = 0.0;
+  @Input() outNames: string[] = ['Color rating'];
+
   @Input() data: AdditiveForceArrayData = {
-    baseValue: 0.0,
-    link: 'identity',
     featureNames: {
       0: 'Blue',
       1: 'Red',
       2: 'Green',
       3: 'Orange',
     },
-    outNames: ['color rating'],
     explanations: [
       {
         outValue: -1.5,
@@ -83,8 +94,8 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       },
     ],
   };
+  @Output() isLoaded = new EventEmitter();
 
-  // TODO: Changed SVGElement to any
   private svg: d3.Selection<any, {}, HTMLElement, any>;
   private wrapper: d3.Selection<any, {}, HTMLElement, any>;
   private mainGroup: d3.Selection<SVGGElement, {}, d3.BaseType, any>;
@@ -137,7 +148,7 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       | number
       | {
           valueOf(): number;
-        },
+        }
   ) => string;
   parseTime: (dateString: string) => Date;
   formatTime: (dateString: Date) => string;
@@ -150,10 +161,9 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
   }
 
   ngAfterViewInit(): void {
-    this.svg = d3.select('svg');
-    this.wrapper = d3.select('#wrapper');
+    this.svg = d3.select('#additiveForceArray');
+    this.wrapper = d3.select('#additiveForceArrayWrapper');
 
-    console.log(this.wrapper.node());
     this.mainGroup = this.svg.append('g');
     this.onTopGroup = this.svg.append('g');
     this.xaxisElement = this.onTopGroup
@@ -202,16 +212,15 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('fill', '#000')
       .attr('font-size', '12px');
 
-    console.log(this.svg.node());
-
-    this.xlabel = this.wrapper.select('.additive-force-array-xlabel').attr('font-size', '14px');
+    this.xlabel = this.wrapper
+      .select('.additive-force-array-xlabel')
+      .attr('font-size', '14px');
     this.ylabel = this.wrapper.select('.additive-force-array-ylabel');
 
     // Create our colors and color gradients
     //Verify custom color map
-    let plot_colors = ShapColors.colors.deeploy;
 
-    this.colors = plot_colors.map(x => hsl(x));
+    this.colors = this.plotColors.map((x) => hsl(x));
     this.brighterColors = [1.45, 1.6].map((v, i) => this.colors[i].brighter(v));
 
     // create our axes
@@ -238,7 +247,7 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     this.xaxis = axisBottom(this.xscale)
       .tickSizeInner(4)
       .tickSizeOuter(0)
-      .tickFormat(d => this.xtickFormat(d))
+      .tickFormat((d) => this.xtickFormat(d))
       .tickPadding(-18);
 
     this.ytickFormat = defaultFormat;
@@ -246,15 +255,14 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     this.yaxis = axisLeft(this.yscale)
       .tickSizeInner(4)
       .tickSizeOuter(0)
-      .tickFormat(d => this.ytickFormat(this.invLinkFunction(d)))
+      .tickFormat((d) => this.ytickFormat(this.invLinkFunction(d)))
       .tickPadding(2);
 
-    console.log(this.xlabel.node());
     this.xlabel.node().onchange = () => this.internalDraw();
     this.ylabel.node().onchange = () => this.internalDraw();
 
-    this.svg.on('mousemove', x => this.mouseMoved(x));
-    this.svg.on('mouseout', x => this.mouseOut(x));
+    this.svg.on('mousemove', (x) => this.mouseMoved(x));
+    this.svg.on('mouseout', (x) => this.mouseOut(x));
 
     // draw and then listen for resize events
     //this.draw();
@@ -293,55 +301,84 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
         }
       }
     }
-    this.usedFeatures = sortBy(keys(posDefinedFeatures), i => -(posDefinedFeatures[i] + negDefinedFeatures[i]));
-    console.log('found ', this.usedFeatures.length, ' used features');
+    this.usedFeatures = sortBy(
+      keys(posDefinedFeatures),
+      (i) => -(posDefinedFeatures[i] + negDefinedFeatures[i])
+    );
 
-    this.posOrderedFeatures = sortBy(this.usedFeatures, i => posDefinedFeatures[i]);
-    this.negOrderedFeatures = sortBy(this.usedFeatures, i => -negDefinedFeatures[i]);
-    this.singleValueFeatures = filter(this.usedFeatures, i => definedFeaturesValues[i] > 0);
+    this.posOrderedFeatures = sortBy(
+      this.usedFeatures,
+      (i) => posDefinedFeatures[i]
+    );
+    this.negOrderedFeatures = sortBy(
+      this.usedFeatures,
+      (i) => -negDefinedFeatures[i]
+    );
+    this.singleValueFeatures = filter(
+      this.usedFeatures,
+      (i) => definedFeaturesValues[i] > 0
+    );
 
     let options: any = [
       'sample order by similarity',
       'sample order by output value',
       'original sample ordering',
-    ].concat(this.singleValueFeatures.map(i => this.data.featureNames[i]));
+    ].concat(this.singleValueFeatures.map((i) => this.data.featureNames[i]));
     if (this.orderingKeys != null) {
       options.unshift('sample order by key');
     }
 
-    let xLabelOptions: d3.Selection<any, any, SVGGElement, {}> = this.xlabel.selectAll('option').data(options);
+    let xLabelOptions: d3.Selection<
+      any,
+      any,
+      SVGGElement,
+      {}
+    > = this.xlabel.selectAll('option').data(options);
     xLabelOptions
       .enter()
       .append('option')
       .merge(xLabelOptions)
-      .attr('value', d => d)
-      .text(d => d);
+      .attr('value', (d) => d)
+      .text((d) => d);
     xLabelOptions.exit().remove();
 
-    let n = this.data.outNames[0] ? this.data.outNames[0] : 'model output value';
-    options = map(this.usedFeatures, i => [this.data.featureNames[i], this.data.featureNames[i] + ' effects']);
+    let n = this.outNames[0] ? this.outNames[0] : 'model output value';
+    options = map(this.usedFeatures, (i) => [
+      this.data.featureNames[i],
+      this.data.featureNames[i] + ' effects',
+    ]);
 
     // TODO: Changed array
-    console.log(options);
     options.unshift(['model output value', n]);
-    let yLabelOptions: d3.Selection<any, any, SVGGElement, {}> = this.ylabel.selectAll('option').data(options);
+    let yLabelOptions: d3.Selection<
+      any,
+      any,
+      SVGGElement,
+      {}
+    > = this.ylabel.selectAll('option').data(options);
     yLabelOptions
       .enter()
       .append('option')
       .merge(yLabelOptions)
-      .attr('value', d => d[0])
-      .text(d => d[1]);
+      .attr('value', (d) => d[0])
+      .text((d) => d[1]);
     yLabelOptions.exit().remove();
 
-    console.log(this.height);
     this.ylabel
-      .style('top', (this.height - 38 - this.topOffset) / 2 + this.topOffset + 'px')
+      .style(
+        'top',
+        (this.height - 38 - this.topOffset) / 2 + this.topOffset + 'px'
+      )
       .style('left', 10 - this.ylabel.node().offsetWidth / 2 + 'px');
 
-    console.log(10 - this.svg.node().offsetWidth / 2);
     this.xlabel
       .style('position', 'absolute')
-      .style('left', this.wrapper.node().offsetWidth / 2 - this.xlabel.node().offsetWidth / 2 + 'px');
+      .style(
+        'left',
+        this.wrapper.node().offsetWidth / 2 -
+          this.xlabel.node().offsetWidth / 2 +
+          'px'
+      );
 
     this.internalDraw();
   }
@@ -361,7 +398,8 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     let xsort = this.xlabel.node().value;
 
     // Set scaleTime if time ticks provided for original ordering
-    let isTimeScale = xsort === 'sample order by key' && this.orderKeysTimeFormat != null;
+    let isTimeScale =
+      xsort === 'sample order by key' && this.orderKeysTimeFormat != null;
     if (isTimeScale) {
       this.xscale = scaleTime();
     } else {
@@ -370,33 +408,33 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     this.xaxis.scale(this.xscale);
 
     if (xsort === 'sample order by similarity') {
-      explanations = sortBy(this.data.explanations, x => x.simIndex);
+      explanations = sortBy(this.data.explanations, (x) => x.simIndex);
       each(explanations, (e, i) => (e.xmap = i));
     } else if (xsort === 'sample order by output value') {
-      explanations = sortBy(this.data.explanations, x => -x.outValue);
+      explanations = sortBy(this.data.explanations, (x) => -x.outValue);
       each(explanations, (e, i) => (e.xmap = i));
     } else if (xsort === 'original sample ordering') {
-      explanations = sortBy(this.data.explanations, x => x.origInd);
+      explanations = sortBy(this.data.explanations, (x) => x.origInd);
       each(explanations, (e, i) => (e.xmap = i));
     } else if (xsort === 'sample order by key') {
       explanations = this.data.explanations;
       if (isTimeScale) {
-        each(explanations, (e, i) => (e.xmap = this.parseTime(this.orderingKeys[i])));
+        each(
+          explanations,
+          (e, i) => (e.xmap = this.parseTime(this.orderingKeys[i]))
+        );
       } else {
         each(explanations, (e, i) => (e.xmap = this.orderingKeys[i]));
       }
-      explanations = sortBy(explanations, e => e.xmap);
+      explanations = sortBy(explanations, (e) => e.xmap);
     } else {
-      let ind = findKey(this.data.featureNames, x => x === xsort);
-
-      console.log(ind);
+      let ind = findKey(this.data.featureNames, (x) => x === xsort);
 
       each(this.data.explanations, (e, i) => {
-        console.log(e, i);
         e.xmap = e.features[ind].value;
       });
-      let explanations2 = sortBy(this.data.explanations, x => x.xmap);
-      let xvals = map(explanations2, x => x.xmap);
+      let explanations2 = sortBy(this.data.explanations, (x) => x.xmap);
+      let xvals = map(explanations2, (x) => x.xmap);
       if (typeof xvals[0] == 'string') {
         alert('Ordering by category names is not yet supported.');
         return;
@@ -410,7 +448,10 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       let laste, copye;
       for (let i = 0; i < explanations2.length; ++i) {
         let e = explanations2[i];
-        if ((laste && !copye && e.xmap - laste.xmap <= binSize) || (copye && e.xmap - copye.xmap <= binSize)) {
+        if (
+          (laste && !copye && e.xmap - laste.xmap <= binSize) ||
+          (copye && e.xmap - copye.xmap <= binSize)
+        ) {
           if (!copye) {
             copye = cloneDeep(laste);
             copye.count = 1;
@@ -434,11 +475,9 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
         }
         laste = e;
       }
-      console.log('explanations', explanations);
       if (laste.xmap - explanations[explanations.length - 1].xmap > binSize) {
         explanations.push(laste);
       }
-      console.log('explanations', explanations);
     }
 
     // adjust for the correct y-value we are plotting
@@ -448,11 +487,10 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     //let filteredFeatureNames = this.data.featureNames;
 
     let yvalue = this.ylabel.node().value;
-    console.log('1: explanations', explanations);
     if (yvalue !== 'model output value') {
       let olde = explanations;
       explanations = cloneDeep(explanations); // TODO: add pointer from old explanations which is prop.explanations to new ones
-      let ind = findKey(this.data.featureNames, x => x === yvalue);
+      let ind = findKey(this.data.featureNames, (x) => x === yvalue);
 
       for (let i = 0; i < explanations.length; ++i) {
         let v = explanations[i].features[ind];
@@ -470,15 +508,15 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     // determine the link function
     if (this.link === 'identity') {
       // assume all links are the same
-      this.invLinkFunction = x => this.baseValue + x;
+      this.invLinkFunction = (x) => this.baseValue + x;
     } else if (this.link === 'logit') {
-      this.invLinkFunction = x => 1 / (1 + Math.exp(-(this.baseValue + x))); // logistic is inverse of logit
+      this.invLinkFunction = (x) => 1 / (1 + Math.exp(-(this.baseValue + x))); // logistic is inverse of logit
     } else {
-      console.log('ERROR: Unrecognized link function: ', this.link);
     }
 
-    console.log(explanations);
-    this.predValues = map(explanations, e => sum(map(e.features, x => x.effect)));
+    this.predValues = map(explanations, (e) =>
+      sum(map(e.features, (x) => x.effect))
+    );
 
     let width = this.wrapper.node().offsetWidth;
     if (width == 0) return setTimeout(() => this.draw(explanations), 500);
@@ -486,15 +524,19 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     this.svg.style('height', this.height + 'px');
     this.svg.style('width', width + 'px');
 
-    let xvals = map(explanations, x => x.xmap);
+    let xvals = map(explanations, (x) => x.xmap);
     this.xscale
       .domain([min(xvals), max(xvals)])
       .range([this.leftOffset, width - this.rightOffset])
       .clamp(true);
-    this.xaxisElement.attr('transform', 'translate(0,' + this.topOffset + ')').call(this.xaxis);
+    this.xaxisElement
+      .attr('transform', 'translate(0,' + this.topOffset + ')')
+      .call(this.xaxis);
 
     for (let i = 0; i < this.currExplanations.length; ++i) {
-      this.currExplanations[i].xmapScaled = this.xscale(this.currExplanations[i].xmap);
+      this.currExplanations[i].xmapScaled = this.xscale(
+        this.currExplanations[i].xmap
+      );
     }
 
     let N = explanations.length;
@@ -505,32 +547,38 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       let totalPosEffects =
         sum(
           map(
-            filter(data2, x => x.effect > 0),
-            x => x.effect,
-          ),
+            filter(data2, (x) => x.effect > 0),
+            (x) => x.effect
+          )
         ) || 0;
       let totalNegEffects =
         sum(
           map(
-            filter(data2, x => x.effect < 0),
-            x => -x.effect,
-          ),
+            filter(data2, (x) => x.effect < 0),
+            (x) => -x.effect
+          )
         ) || 0;
-      domainSize = Math.max(domainSize, Math.max(totalPosEffects, totalNegEffects) * 2.2);
+      domainSize = Math.max(
+        domainSize,
+        Math.max(totalPosEffects, totalNegEffects) * 2.2
+      );
     }
-    this.yscale.domain([-domainSize / 2, domainSize / 2]).range([this.height - 10, this.topOffset]);
-    this.yaxisElement.attr('transform', 'translate(' + this.leftOffset + ',0)').call(this.yaxis);
+    this.yscale
+      .domain([-domainSize / 2, domainSize / 2])
+      .range([this.height - 10, this.topOffset]);
+    this.yaxisElement
+      .attr('transform', 'translate(' + this.leftOffset + ',0)')
+      .call(this.yaxis);
 
     for (let ind = 0; ind < N; ++ind) {
       let data2 = explanations[ind].features;
-      //console.log(length(data2))
 
       let totalNegEffects =
         sum(
           map(
-            filter(data2, x => x.effect < 0),
-            x => -x.effect,
-          ),
+            filter(data2, (x) => x.effect < 0),
+            (x) => -x.effect
+          )
         ) || 0;
 
       //let scaleOffset = height/2 - this.yscale(totalNegEffects);
@@ -556,10 +604,15 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     }
 
     let lineFunction = line()
-      .x(d => d[0])
-      .y(d => d[1]);
+      .x((d) => d[0])
+      .y((d) => d[1]);
 
-    let areasPos: d3.Selection<any, unknown, SVGGElement, {}> = this.mainGroup
+    let areasPos: d3.Selection<
+      any,
+      unknown,
+      SVGGElement,
+      {}
+    > = this.mainGroup
       .selectAll('.force-bar-array-area-pos')
       .data(this.currUsedFeatures);
     areasPos
@@ -568,8 +621,11 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('class', 'force-bar-array-area-pos')
       .merge(areasPos)
       .attr('d', (i: number) => {
-        let topPoints = map(range(N), j => [explanations[j].xmapScaled, explanations[j].features[i].posyTop]);
-        let bottomPoints = map(rangeRight(N), j => [
+        let topPoints = map(range(N), (j) => [
+          explanations[j].xmapScaled,
+          explanations[j].features[i].posyTop,
+        ]);
+        let bottomPoints = map(rangeRight(N), (j) => [
           explanations[j].xmapScaled,
           explanations[j].features[i].posyBottom,
         ]);
@@ -578,7 +634,12 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('fill', this.colors[0]);
     areasPos.exit().remove();
 
-    let areasNeg: d3.Selection<any, unknown, SVGGElement, {}> = this.mainGroup
+    let areasNeg: d3.Selection<
+      any,
+      unknown,
+      SVGGElement,
+      {}
+    > = this.mainGroup
       .selectAll('.force-bar-array-area-neg')
       .data(this.currUsedFeatures);
     areasNeg
@@ -587,8 +648,11 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('class', 'force-bar-array-area-neg')
       .merge(areasNeg)
       .attr('d', (i: number) => {
-        let topPoints = map(range(N), j => [explanations[j].xmapScaled, explanations[j].features[i].negyTop]);
-        let bottomPoints = map(rangeRight(N), j => [
+        let topPoints = map(range(N), (j) => [
+          explanations[j].xmapScaled,
+          explanations[j].features[i].negyTop,
+        ]);
+        let bottomPoints = map(rangeRight(N), (j) => [
           explanations[j].xmapScaled,
           explanations[j].features[i].negyBottom,
         ]);
@@ -597,7 +661,12 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('fill', this.colors[1]);
     areasNeg.exit().remove();
 
-    let dividersPos: d3.Selection<any, unknown, SVGGElement, {}> = this.mainGroup
+    let dividersPos: d3.Selection<
+      any,
+      unknown,
+      SVGGElement,
+      {}
+    > = this.mainGroup
       .selectAll('.force-bar-array-divider-pos')
       .data(this.currUsedFeatures);
     dividersPos
@@ -606,7 +675,10 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('class', 'force-bar-array-divider-pos')
       .merge(dividersPos)
       .attr('d', (i: number) => {
-        let points = map(range(N), j => [explanations[j].xmapScaled, explanations[j].features[i].posyBottom]);
+        let points = map(range(N), (j) => [
+          explanations[j].xmapScaled,
+          explanations[j].features[i].posyBottom,
+        ]);
         return lineFunction(points);
       })
       .attr('fill', 'none')
@@ -614,7 +686,12 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('stroke', () => this.colors[0].brighter(1.2));
     dividersPos.exit().remove();
 
-    let dividersNeg: d3.Selection<any, unknown, SVGGElement, {}> = this.mainGroup
+    let dividersNeg: d3.Selection<
+      any,
+      unknown,
+      SVGGElement,
+      {}
+    > = this.mainGroup
       .selectAll('.force-bar-array-divider-neg')
       .data(this.currUsedFeatures);
     dividersNeg
@@ -623,7 +700,10 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('class', 'force-bar-array-divider-neg')
       .merge(dividersNeg)
       .attr('d', (i: number) => {
-        let points = map(range(N), j => [explanations[j].xmapScaled, explanations[j].features[i].negyTop]);
+        let points = map(range(N), (j) => [
+          explanations[j].xmapScaled,
+          explanations[j].features[i].negyTop,
+        ]);
         return lineFunction(points);
       })
       .attr('fill', 'none')
@@ -631,7 +711,7 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .attr('stroke', () => this.colors[1].brighter(1.5));
     dividersNeg.exit().remove();
 
-    let boxBounds = function(es, ind, starti, endi, featType) {
+    let boxBounds = function (es, ind, starti, endi, featType) {
       let maxTop, minBottom;
       if (featType === 'pos') {
         maxTop = es[starti].features[ind].posyBottom;
@@ -672,7 +752,8 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
           // make sure our box is long enough
           while (boxWidth < neededWidth && endi < N - 1) {
             ++endi;
-            boxWidth = explanations[endi].xmapScaled - explanations[starti].xmapScaled;
+            boxWidth =
+              explanations[endi].xmapScaled - explanations[starti].xmapScaled;
           }
 
           // and high enough
@@ -681,11 +762,14 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
             ++starti;
             hbounds = boxBounds(explanations, ind, starti, endi, featType);
           }
-          boxWidth = explanations[endi].xmapScaled - explanations[starti].xmapScaled;
+          boxWidth =
+            explanations[endi].xmapScaled - explanations[starti].xmapScaled;
 
           // we found a spot!
-          if (hbounds.bottom - hbounds.top >= neededHeight && boxWidth >= neededWidth) {
-            //console.log(`found a spot! ind: ${ind}, starti: ${starti}, endi: ${endi}, hbounds:`, hbounds)
+          if (
+            hbounds.bottom - hbounds.top >= neededHeight &&
+            boxWidth >= neededWidth
+          ) {
             // make our box as long as possible
             while (endi < N - 1) {
               ++endi;
@@ -697,18 +781,23 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
                 break;
               }
             }
-            boxWidth = explanations[endi].xmapScaled - explanations[starti].xmapScaled;
-            //console.log("found  ",boxWidth,hbounds)
+            boxWidth =
+              explanations[endi].xmapScaled - explanations[starti].xmapScaled;
 
             featureLabels.push([
-              (explanations[endi].xmapScaled + explanations[starti].xmapScaled) / 2,
+              (explanations[endi].xmapScaled +
+                explanations[starti].xmapScaled) /
+                2,
               (hbounds.top + hbounds.bottom) / 2,
               this.data.featureNames[ind],
             ]);
 
             let lastEnd = explanations[endi].xmapScaled;
             starti = endi;
-            while (lastEnd + neededBuffer > explanations[starti].xmapScaled && starti < N - 1) {
+            while (
+              lastEnd + neededBuffer > explanations[starti].xmapScaled &&
+              starti < N - 1
+            ) {
               ++starti;
             }
             endi = starti;
@@ -717,7 +806,12 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       }
     }
 
-    let featureLabelText: d3.Selection<any, unknown, SVGGElement, {}> = this.onTopGroup
+    let featureLabelText: d3.Selection<
+      any,
+      unknown,
+      SVGGElement,
+      {}
+    > = this.onTopGroup
       .selectAll('.force-bar-array-flabels')
       .data(featureLabels);
     featureLabelText
@@ -725,9 +819,9 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       .append('text')
       .attr('class', 'force-bar-array-flabels')
       .merge(featureLabelText)
-      .attr('x', d => d[0])
-      .attr('y', d => d[1] + 4)
-      .text(d => d[2]);
+      .attr('x', (d) => d[0])
+      .attr('y', (d) => d[1] + 4)
+      .text((d) => d[2]);
     featureLabelText.exit().remove();
   }
 
@@ -759,7 +853,11 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
     if (this.data.explanations) {
       // Find the nearest explanation to the cursor position
       for (i = 0; i < this.currExplanations.length; ++i) {
-        if (!nearestExp || Math.abs(nearestExp.xmapScaled - x) > Math.abs(this.currExplanations[i].xmapScaled - x)) {
+        if (
+          !nearestExp ||
+          Math.abs(nearestExp.xmapScaled - x) >
+            Math.abs(this.currExplanations[i].xmapScaled - x)
+        ) {
           nearestExp = this.currExplanations[i];
         }
       }
@@ -781,7 +879,9 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       this.hoverxTitle
         .attr('x', nearestExp.xmapScaled)
         .attr('y', this.topOffset - 18)
-        .text(nearestExp.count > 1 ? nearestExp.count + ' averaged samples' : '');
+        .text(
+          nearestExp.count > 1 ? nearestExp.count + ' averaged samples' : ''
+        );
       this.hovery
         .attr('x', this.leftOffset - 6)
         .attr('y', nearestExp.joinPointy)
@@ -797,7 +897,10 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
         let i = this.currPosOrderedFeatures[j];
         let d = nearestExp.features[i];
         pos = 5 + (d.posyTop + d.posyBottom) / 2;
-        if ((!lastPos || pos - lastPos >= 15) && d.posyTop - d.posyBottom >= 6) {
+        if (
+          (!lastPos || pos - lastPos >= 15) &&
+          d.posyTop - d.posyBottom >= 6
+        ) {
           posFeatures.push(d);
           lastPos = pos;
         }
@@ -808,16 +911,20 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
       for (let i of this.currNegOrderedFeatures) {
         let d = nearestExp.features[i];
         pos = 5 + (d.negyTop + d.negyBottom) / 2;
-        if ((!lastPos || lastPos - pos >= 15) && d.negyTop - d.negyBottom >= 6) {
+        if (
+          (!lastPos || lastPos - pos >= 15) &&
+          d.negyTop - d.negyBottom >= 6
+        ) {
           negFeatures.push(d);
           lastPos = pos;
         }
       }
 
-      let labelFunc = d => {
+      let labelFunc = (d) => {
         let valString = '';
         if (d.value !== null && d.value !== undefined) {
-          valString = ' = ' + (isNaN(d.value) ? d.value : this.ytickFormat(d.value));
+          valString =
+            ' = ' + (isNaN(d.value) ? d.value : this.ytickFormat(d.value));
         }
         if (nearestExp.count > 1) {
           return 'mean(' + this.data.featureNames[d.ind] + ')' + valString;
@@ -826,16 +933,19 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
         }
       };
 
-      let featureHoverLabels1: d3.Selection<any, any, SVGGElement, {}> = this.hoverGroup1
-        .selectAll('.pos-values')
-        .data(posFeatures);
+      let featureHoverLabels1: d3.Selection<
+        any,
+        any,
+        SVGGElement,
+        {}
+      > = this.hoverGroup1.selectAll('.pos-values').data(posFeatures);
       featureHoverLabels1
         .enter()
         .append('text')
         .attr('class', 'pos-values')
         .merge(featureHoverLabels1)
         .attr('x', nearestExp.xmapScaled + 5)
-        .attr('y', d => 4 + (d.posyTop + d.posyBottom) / 2)
+        .attr('y', (d) => 4 + (d.posyTop + d.posyBottom) / 2)
         .attr('text-anchor', 'start')
         .attr('font-size', 12)
         .attr('stroke', '#fff')
@@ -846,32 +956,38 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
         .text(labelFunc);
       featureHoverLabels1.exit().remove();
 
-      let featureHoverLabels2: d3.Selection<any, any, SVGGElement, {}> = this.hoverGroup2
-        .selectAll('.pos-values')
-        .data(posFeatures);
+      let featureHoverLabels2: d3.Selection<
+        any,
+        any,
+        SVGGElement,
+        {}
+      > = this.hoverGroup2.selectAll('.pos-values').data(posFeatures);
       featureHoverLabels2
         .enter()
         .append('text')
         .attr('class', 'pos-values')
         .merge(featureHoverLabels2)
         .attr('x', nearestExp.xmapScaled + 5)
-        .attr('y', d => 4 + (d.posyTop + d.posyBottom) / 2)
+        .attr('y', (d) => 4 + (d.posyTop + d.posyBottom) / 2)
         .attr('text-anchor', 'start')
         .attr('font-size', 12)
         .attr('fill', this.colors[0])
         .text(labelFunc);
       featureHoverLabels2.exit().remove();
 
-      let featureHoverNegLabels1: d3.Selection<any, any, SVGGElement, {}> = this.hoverGroup1
-        .selectAll('.neg-values')
-        .data(negFeatures);
+      let featureHoverNegLabels1: d3.Selection<
+        any,
+        any,
+        SVGGElement,
+        {}
+      > = this.hoverGroup1.selectAll('.neg-values').data(negFeatures);
       featureHoverNegLabels1
         .enter()
         .append('text')
         .attr('class', 'neg-values')
         .merge(featureHoverNegLabels1)
         .attr('x', nearestExp.xmapScaled + 5)
-        .attr('y', d => 4 + (d.negyTop + d.negyBottom) / 2)
+        .attr('y', (d) => 4 + (d.negyTop + d.negyBottom) / 2)
         .attr('text-anchor', 'start')
         .attr('font-size', 12)
         .attr('stroke', '#fff')
@@ -882,21 +998,25 @@ export class ShapAdditiveForceArrayComponent implements AfterViewInit, OnDestroy
         .text(labelFunc);
       featureHoverNegLabels1.exit().remove();
 
-      let featureHoverNegLabels2: d3.Selection<any, any, SVGGElement, {}> = this.hoverGroup2
-        .selectAll('.neg-values')
-        .data(negFeatures);
+      let featureHoverNegLabels2: d3.Selection<
+        any,
+        any,
+        SVGGElement,
+        {}
+      > = this.hoverGroup2.selectAll('.neg-values').data(negFeatures);
       featureHoverNegLabels2
         .enter()
         .append('text')
         .attr('class', 'neg-values')
         .merge(featureHoverNegLabels2)
         .attr('x', nearestExp.xmapScaled + 5)
-        .attr('y', d => 4 + (d.negyTop + d.negyBottom) / 2)
+        .attr('y', (d) => 4 + (d.negyTop + d.negyBottom) / 2)
         .attr('text-anchor', 'start')
         .attr('font-size', 12)
         .attr('fill', this.colors[1])
         .text(labelFunc);
       featureHoverNegLabels2.exit().remove();
     }
+    this.isLoaded.emit();
   }
 }

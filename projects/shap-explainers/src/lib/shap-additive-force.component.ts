@@ -1,10 +1,9 @@
 import {
   AfterViewInit,
   Component,
-  ElementRef,
   Input,
-  OnInit,
-  ViewChild,
+  Output,
+  EventEmitter,
 } from '@angular/core';
 import { select } from 'd3-selection';
 import { scaleLinear } from 'd3-scale';
@@ -15,7 +14,6 @@ import { hsl, HSLColor } from 'd3-color';
 import { sortBy, map, each, sum, filter, findIndex, debounce } from 'lodash';
 import * as d3 from 'd3';
 
-import { ShapColors } from './shap-colors';
 import { AdditiveForceData } from './shap-data';
 
 @Component({
@@ -24,16 +22,21 @@ import { AdditiveForceData } from './shap-data';
   styleUrls: ['./shap-additive-force.component.scss'],
 })
 export class ShapAdditiveForceComponent implements AfterViewInit {
+  @Input() plotColors: string[] = ['rgb(222, 53, 13)', 'rgb(111, 207, 151)'];
+  @Input() link: 'logit' | 'identity' = 'identity';
+  @Input() baseValue: number = 0.0;
+  @Input() outNames: string[] = ['Color rating'];
+  @Input() hideBars: boolean = false;
+  @Input() labelMargin: number = 0;
+  @Input() hideBaseValueLabel: boolean = false;
+
   @Input() data: AdditiveForceData = {
-    baseValue: 0.0,
-    link: 'identity',
     featureNames: {
       '0': 'Blue',
       '1': 'Red',
       '2': 'Green',
       '3': 'Orange',
     },
-    outNames: ['color rating'],
     features: {
       '0': { value: 1.0, effect: 1.0 },
       '1': { value: 0.0, effect: 0.5 },
@@ -42,7 +45,10 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
     },
   };
 
+  @Output() isLoaded = new EventEmitter();
+
   private svg: d3.Selection<d3.BaseType, {}, HTMLElement, any>;
+  private wrapper: d3.Selection<any, {}, HTMLElement, any>;
   private filteredData: d3.ScaleLinear<number, number, never>;
   private filteredData2: d3.ScaleLinear<number, number, never>;
   private mainGroup: d3.Selection<SVGGElement, {}, d3.BaseType, any>;
@@ -97,7 +103,9 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    this.svg = d3.select('svg');
+    this.svg = d3.select('#additiveForce');
+    this.wrapper = d3.select('#additiveForceWrapper');
+
     this.mainGroup = this.svg.append('g');
     this.axisElement = this.mainGroup
       .append('g')
@@ -153,9 +161,8 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
       });
 
     // Create our colors and color gradients
-    let plot_colors = ShapColors.colors.deeploy;
 
-    this.colors = plot_colors.map((x) => hsl(x));
+    this.colors = this.plotColors.map((x) => hsl(x));
     this.brighterColors = [1.45, 1.6].map((v, i) => this.colors[i].brighter(v));
     this.colors.map((c, i) => {
       let grad = this.svg
@@ -205,7 +212,7 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
       .tickPadding(-18);
 
     // draw and then listen for resize events
-    //this.draw();
+    // this.draw();
     window.addEventListener('resize', this.redraw);
     window.setTimeout(this.redraw, 50); // re-draw after interface has updated
   }
@@ -217,19 +224,16 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
     });
 
     // create our link function
-    if (this.data.link === 'identity') {
-      this.invLinkFunction = (x) => this.data.baseValue + x;
-    } else if (this.data.link === 'logit') {
-      this.invLinkFunction = (x) =>
-        1 / (1 + Math.exp(-(this.data.baseValue + x))); // logistic is inverse of logit
+    if (this.link === 'identity') {
+      this.invLinkFunction = (x) => this.baseValue + x;
+    } else if (this.link === 'logit') {
+      this.invLinkFunction = (x) => 1 / (1 + Math.exp(-(this.baseValue + x))); // logistic is inverse of logit
     } else {
-      console.log('ERROR: Unrecognized link function: ', this.data.link);
     }
 
     // Set the dimensions of the plot
-    let width = document
-      .getElementById('svg')
-      .parentElement.getBoundingClientRect().width;
+    let width = this.wrapper.node().offsetWidth;
+
     if (width == 0) return setTimeout(() => this.draw(), 500);
     this.svg.style('height', 150 + 'px');
     this.svg.style('width', width + 'px');
@@ -294,7 +298,7 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
       } else return d.name;
     };
 
-    data = this.data.hideBars ? [] : data;
+    data = this.hideBars ? [] : data;
     let blocks: d3.Selection<
       any,
       any,
@@ -417,8 +421,8 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
     // Now that we know the text widths we further filter by what fits on the screen
     filteredData = filter(filteredData, (d) => {
       return (
-        scale(d.textx) + scaleOffset > this.data.labelMargin &&
-        scale(d.textx) + scaleOffset < width - this.data.labelMargin
+        scale(d.textx) + scaleOffset > this.labelMargin &&
+        scale(d.textx) + scaleOffset < width - this.labelMargin
       );
     });
     this.filteredData2 = filteredData;
@@ -591,10 +595,10 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
       .attr('text-anchor', 'middle')
       .attr('font-size', '12')
       .attr('fill', '#000')
-      .text(this.data.outNames[0])
+      .text(this.outNames[0])
       .attr('opacity', 0.5);
 
-    if (!this.data.hideBars) {
+    if (!this.hideBars) {
       this.joinPointTitleLeft
         .attr('x', scale(joinPoint) + scaleOffset - 16)
         .attr('y', -38 + topOffset)
@@ -629,7 +633,7 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
         .text('←')
         .attr('opacity', 1.0);
     }
-    if (!this.data.hideBaseValueLabel) {
+    if (!this.hideBaseValueLabel) {
       this.baseValueTitle
         .attr('x', this.scaleCentered(0))
         .attr('y', -22 + topOffset)
@@ -639,5 +643,6 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
         .text('base value')
         .attr('opacity', 0.5);
     }
+    this.isLoaded.emit();
   }
 }

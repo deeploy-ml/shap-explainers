@@ -17,6 +17,13 @@ Original code by https://github.com/slundberg/shap
 shap-additive-force component input parameters:
 
 ```
+    plotColors: string[] = ['rgb(222, 53, 13)', 'rgb(111, 207, 151)'];
+    link: 'logit' | 'identity' = 'identity';
+    baseValue: number = 0.0;
+    outNames: string[] = ['Color rating'];
+    hideBars: boolean = false;
+    labelMargin: number = 0;
+    hideBaseValueLabel: boolean = false;
     data: AdditiveForceData;
 ```
 
@@ -24,14 +31,14 @@ shap-additive-force component input parameters:
 shap-additive-force-array component input parameters:
 
 ```
-    orderingKeys
-    orderKeysTimeFormat;
-    topOffset: number;
-    leftOffset: number;
-    rightOffset: number;
-    height: number;
-    link: 'identity' | 'logit';
-    baseValue: number;
+    topOffset: number = 28;
+    leftOffset: number = 80;
+    rightOffset: number = 10;
+    height: number = 350;
+    plotColors = ['rgb(222, 53, 13)', 'rgb(111, 207, 151)'];
+    link: 'logit' | 'identity' = 'identity';
+    baseValue: number = 0.0;
+    outNames: string[] = ['Color rating'];
     data: AdditiveForceArrayData
 
 ```
@@ -40,27 +47,18 @@ shap-additive-force-array component input parameters:
 
 ```
     AdditiveForceData {
-        baseValue: number;
-        link: string;
         featureNames: {
             [key: string]: string;
         };
-        outNames: string[];
         features: {
             [key: string]: { [key: string]: number };
         };
-        hideBars?: boolean;
-        labelMargin?: number;
-        hideBaseValueLabel?: boolean;
     }
 
     AdditiveForceArrayData {
-        baseValue: number;
-        link: string;
         featureNames: {
             [key: string]: string;
         };
-        outNames: string[];
         explanations: {
             outValue: number;
             simIndex: number;
@@ -68,9 +66,6 @@ shap-additive-force-array component input parameters:
             [key: string]: { value: number; effect: number; ind?: number };
             };
         }[];
-        hideBars?: boolean;
-        labelMargin?: number;
-        hideBaseValueLabel?: boolean;
     }
 ```
 
