@@ -19,3 +19,15 @@ export interface AdditiveForceArrayData {
     };
   }[];
 }
+
+export interface InfluenceData {
+  featureNames: {
+    [key: string]: string;
+  };
+  valueNames: {
+    [key: string]: string;
+  };
+  features: {
+    [key: string]: { [key: string]: number };
+  };
+}

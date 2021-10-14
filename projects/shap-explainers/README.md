@@ -6,16 +6,19 @@ This project contains the Angular components for the SHAP visual explainers:
 
 Original code by https://github.com/slundberg/shap
 
+&nbsp;
 ## Installation instructions
 
 1. Run `npm i shap-explainers` 
 2. Add `ShapExplainersModule` to the imports array
-3. Use the `shap-additive-force` or `shap-additive-force-array` component selectors
+3. Use the one of the following component selectors:
+    - `<shap-additive-force>`
+    - `<shap-additive-force-array>`
+    - `<shap-influence>`
 
+&nbsp;
 ## API - How to use the components
   
-&nbsp;
-&nbsp;
 ### shap-additive-force component input parameters:
 
 Changing the colors of the plot. Requires an array of 2 colors.\
@@ -27,7 +30,7 @@ Changing the x-axis type between log-odds (identity) or probabilities (logit).\
 Setting the base value (middle point) for the plot:\
 `baseValue: number = 0.0;`
 
-Set the label(s) for the output variables 
+Set the label(s) for the output variables\
 `outNames: string[] = ['Color rating'];`
 
 Hide the plot bars:\
@@ -43,8 +46,6 @@ The data with the feature names and feature values\
 `data: AdditiveForceData;`
 
 
-
-&nbsp;
 &nbsp;
 ### shap-additive-force-array component input parameters:
 
@@ -75,33 +76,64 @@ Set the label(s) for the output variables\
 The data with the feature names and feature values\
 `data: AdditiveForceArrayData`
 
+
+&nbsp;
+### shap-influence component input parameters:
+
+Changing the colors of the signs (+/-). Requires an array of 2 colors.\
+`influenceColors: string[] = ['rgb(222, 53, 13)', 'rgb(111, 207, 151)'];`
+
+Set the prediction values\
+`predictions: number[] = [1];`
+
+Set the prediction label names\
+`predictionNames: string[] = ['Income']`
+
+Set the amount of influence labels that are being displayed\
+`labelAmount: number = 7;`
+
+
+&nbsp;
 ## Interfaces
 
 ```
-    AdditiveForceData {
-        featureNames: {
-            [key: string]: string;
-        };
-        features: {
-            [key: string]: { [key: string]: number };
-        };
-    }
+AdditiveForceData {
+    featureNames: {
+        [key: string]: string;
+    };
+    features: {
+        [key: string]: { [key: string]: number };
+    };
+}
 
-    AdditiveForceArrayData {
-        featureNames: {
-            [key: string]: string;
-        };
-        explanations: {
-            outValue: number;
-            simIndex: number;
-            features: {
+AdditiveForceArrayData {
+    featureNames: {
+        [key: string]: string;
+    };
+    explanations: {
+        outValue: number;
+        simIndex: number;
+        features: {
             [key: string]: { value: number; effect: number; ind?: number };
-            };
-        }[];
-    }
+        };
+    }[];
+}
+
+InfluenceData {
+    featureNames: {
+        [key: string]: string;
+    };
+    valueNames: {
+        [key: string]: string;
+    };
+    features: {
+        [key: string]: { [key: string]: number };
+    };
+}
 ```
 
 
+&nbsp;
 ## Repository
 
 [Deeploy-ml/shap-explainers](https://github.com/deeploy-ml/shap-explainers)

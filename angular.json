@@ -36,7 +36,9 @@
               "projects/shap-explainers/tsconfig.lib.json",
               "projects/shap-explainers/tsconfig.spec.json"
             ],
-            "exclude": ["**/node_modules/**"]
+            "exclude": [
+              "**/node_modules/**"
+            ]
           }
         }
       }
@@ -62,9 +64,13 @@
             "tsConfig": "tsconfig.app.json",
             "aot": true,
             "assets": [],
-            "styles": ["src/sass/styles.scss"],
+            "styles": [
+              "src/sass/styles.scss"
+            ],
             "stylePreprocessorOptions": {
-              "includePaths": ["src/sass"]
+              "includePaths": [
+                "src/sass"
+              ]
             },
             "scripts": []
           }
@@ -89,12 +95,20 @@
         "lint": {
           "builder": "@angular-devkit/build-angular:tslint",
           "options": {
-            "tsConfig": ["tsconfig.app.json", "tsconfig.spec.json"],
-            "exclude": ["**/node_modules/**"]
+            "tsConfig": [
+              "tsconfig.app.json",
+              "tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**"
+            ]
           }
         }
       }
     }
   },
-  "defaultProject": "shap-explainers"
+  "defaultProject": "shap-explainers",
+  "cli": {
+    "analytics": false
+  }
 }

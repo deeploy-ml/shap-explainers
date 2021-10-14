@@ -5,7 +5,6 @@ import {
   Output,
   EventEmitter,
 } from '@angular/core';
-import { select } from 'd3-selection';
 import { scaleLinear } from 'd3-scale';
 import { format } from 'd3-format';
 import { axisBottom } from 'd3-axis';
@@ -14,7 +13,7 @@ import { hsl, HSLColor } from 'd3-color';
 import { sortBy, map, each, sum, filter, findIndex, debounce } from 'lodash';
 import * as d3 from 'd3';
 
-import { AdditiveForceData } from './shap-data';
+import { AdditiveForceData } from '../shap-data';
 
 @Component({
   selector: 'shap-additive-force',
@@ -220,7 +219,9 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
   draw(): any {
     // copy the feature names onto the features
     each(this.data.featureNames, (n, i) => {
-      if (this.data.features[i]) this.data.features[i].name = n;
+      const result = n.replace(/([A-Z])/g, ' $1');
+      const name = result.charAt(0).toUpperCase() + result.slice(1);
+      if (this.data.features[i]) this.data.features[i].name = name;
     });
 
     // create our link function
@@ -640,7 +641,7 @@ export class ShapAdditiveForceComponent implements AfterViewInit {
         .attr('text-anchor', 'middle')
         .attr('font-size', '12')
         .attr('fill', '#000')
-        .text('base value')
+        .text('Base value')
         .attr('opacity', 0.5);
     }
     this.isLoaded.emit();

@@ -1,15 +1,11 @@
 import {
   AfterViewInit,
   Component,
-  ElementRef,
   EventEmitter,
   Input,
   OnDestroy,
-  OnInit,
   Output,
-  ViewChild,
 } from '@angular/core';
-import { select } from 'd3-selection';
 import { scaleLinear, scaleTime } from 'd3-scale';
 import { format } from 'd3-format';
 import { axisBottom, axisLeft } from 'd3-axis';
@@ -32,7 +28,7 @@ import {
 } from 'lodash';
 import * as d3 from 'd3';
 
-import { AdditiveForceArrayData } from './shap-data';
+import { AdditiveForceArrayData } from '../shap-data';
 import { timeFormat, timeParse } from 'd3';
 
 @Component({

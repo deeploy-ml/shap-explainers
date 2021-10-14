@@ -1,20 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { ShapAdditiveForceComponent } from './shap-additive-force.component';
+import { ShapInfluenceComponent } from './shap-influence.component';
 
-describe('ShapAdditiveForceComponent', () => {
-  let component: ShapAdditiveForceComponent;
-  let fixture: ComponentFixture<ShapAdditiveForceComponent>;
+describe('ShapInfluenceComponent', () => {
+  let component: ShapInfluenceComponent;
+  let fixture: ComponentFixture<ShapInfluenceComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [ ShapAdditiveForceComponent ]
+      declarations: [ ShapInfluenceComponent ]
     })
     .compileComponents();
   });
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(ShapAdditiveForceComponent);
+    fixture = TestBed.createComponent(ShapInfluenceComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
