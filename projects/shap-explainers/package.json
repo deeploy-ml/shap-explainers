@@ -1,10 +1,13 @@
 {
   "name": "shap-explainers",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "peerDependencies": {
     "@angular/common": "^11.0.9",
     "@angular/core": "^11.0.9"
   },
+  "files": [
+    "./dist/**/*"
+  ],
   "dependencies": {
     "d3": "^6.5.0",
     "tslib": "^2.0.0"
